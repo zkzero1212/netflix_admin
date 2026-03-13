@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NETFLIX - ADMIN</title>
+  <style>
+    body { background: #111; color: white; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
+    .container { width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; }
+    .main-logo { color: #007bff; font-size: 2rem; font-weight: bold; margin-bottom: 10px; letter-spacing: 2px; } /* 관리자는 파란색 로고 */
+    .card { background: #222; border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: left; }
+    .btn { width: 100%; padding: 18px 0; border-radius: 12px; border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer; color: white; transition: 0.2s; text-align: center; box-sizing: border-box; margin-top: 5px; }
+    .btn-primary { background: #007bff; box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3); } /* 관리자용 파란 버튼 */
+    .copy-chip { background: #333; padding: 12px; border-radius: 8px; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #444; margin-bottom: 8px; }
+    .copy-chip:active { background: #444; }
+    
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-box { background: #222; padding: 20px; border-radius: 12px; width: 85%; max-width: 400px; border: 1px solid #444; text-align: center; }
+    .modal-content { font-size: 0.95rem; color: #ddd; margin: 15px 0; white-space: pre-wrap; line-height: 1.5; text-align: left; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="main-logo">ADMIN PASS</div>
+
+    <div class="card" style="margin-top: 15px;">
+      <div style="color: #aaa; font-size: 0.85rem; margin-bottom: 10px;">📺 넷플릭스 로그인 정보 <span style="font-size: 0.75rem; color: #888;">(클릭 시 복사)</span></div>
+      <div class="copy-chip" onclick="copyToClipboard('freenetfltoy00@gmail.com', '계정')">
+        <span style="color: #ccc;">계정</span>
+        <span style="color: white; font-weight: bold;">freenetfltoy00@gmail.com</span>
+      </div>
+      <div class="copy-chip" onclick="copyToClipboard('비밀번호로딩중', '비밀번호')" id="pw-chip">
+        <span style="color: #ccc;">비밀번호</span>
+        <span id="netflix-pw" style="color: #46d369; font-weight: bold; letter-spacing: 1px;">자동 로딩 중...</span>
+      </div>
+    </div>
+
+    <div style="color: #ccc; font-size: 0.9rem; margin: 20px 0 10px 0;">
+      넷플릭스 메일 발송 후 <b style="color: #007bff;">아래 버튼 클릭</b>
+    </div>
+    
+    <button class="btn btn-primary" onclick="checkAuth()">🚀 인증/코드 강제 파싱</button>
+  </div>
+
+  <div id="modal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="modal-title" style="font-weight: bold; font-size: 1.1rem; color: #007bff; margin-bottom: 10px;">알림</div>
+      <div id="modal-body" class="modal-content"></div>
+      <button class="btn" style="background: #444; padding: 12px; margin-top: 10px;" onclick="closeModal()">확인</button>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================
+    // ★ 1. 관리자님의 GAS 백엔드 주소를 입력해 주세요.
+    const API_URL = "여기에_GAS_주소를_넣어주세요";
+    
+    // ★ 2. DB에 설정하신 ADMIN_KEY 값을 입력해 주세요. (이 코드가 알아서 문을 엽니다)
+    const ADMIN_SECRET_KEY = "MASTER_PASS_123";
+    // =========================================================
+
+    // 사이트 접속 시 마스터키로 몰래 접속하여 비밀번호만 가져와서 화면에 뿌림
+    window.onload = async () => {
+      try {
+        const response = await fetch(`${API_URL}?action=verify&key=${encodeURIComponent(ADMIN_SECRET_KEY)}`);
+        const result = await response.json();
+        if (result.success) {
+          document.getElementById('netflix-pw').innerText = result.data.pw;
+        } else {
+          document.getElementById('netflix-pw').innerText = "접근 거부됨";
+          document.getElementById('netflix-pw').style.color = "#ff6b6b";
+        }
+      } catch (err) {
+        document.getElementById('netflix-pw').innerText = "통신 오류";
+        document.getElementById('netflix-pw').style.color = "#ff6b6b";
+      }
+    };
+
+    // 파싱 버튼 클릭 시 마스터키를 들고 파싱 요청
+    async function checkAuth() {
+      showAlert("처리 중", "관리자 권한으로 이메일함을 확인하고 있습니다...\n(약 2~5초 소요)");
+      
+      try {
+        const response = await fetch(`${API_URL}?action=auth&key=${encodeURIComponent(ADMIN_SECRET_KEY)}`);
+        const result = await response.json();
+        closeModal();
+
+        if (result.success) {
+          if (result.type === 'url') {
+            window.location.href = result.url; 
+          } else if (result.type === 'code') {
+            const codeHtml = `<div style="font-size:2.5rem; color:#007bff; font-weight:bold; letter-spacing:5px; text-align:center; margin: 20px 0;">${result.code}</div>`;
+            showAlert("🔑 로그인 코드", codeHtml);
+          }
+        } else {
+          showAlert("파싱 실패", result.message);
+        }
+      } catch (err) {
+        closeModal();
+        showAlert("네트워크 오류", "메일을 확인하는 중 문제가 발생했습니다.");
+      }
+    }
+
+    function copyToClipboard(text, label) {
+      if(text === '비밀번호로딩중') text = document.getElementById('netflix-pw').innerText;
+      if(text === '자동 로딩 중...' || text === '통신 오류' || text === '접근 거부됨') {
+        showAlert("오류", "비밀번호를 정상적으로 불러오지 못했습니다.");
+        return;
+      }
+      const tempInput = document.createElement("input");
+      document.body.appendChild(tempInput);
+      tempInput.value = text;
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+      showAlert("복사 완료", `[${label}] 항목이 복사되었습니다.`);
+    }
+
+    function showAlert(title, body) {
+      document.getElementById('modal-title').innerText = title;
+      document.getElementById('modal-body').innerHTML = body;
+      document.getElementById('modal').style.display = 'flex';
+    }
+    
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+  </script>
+</body>
+</html>
