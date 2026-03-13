@@ -7,12 +7,13 @@
   <style>
     body { background: #111; color: white; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
     .container { width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; }
-    .main-logo { color: #007bff; font-size: 2rem; font-weight: bold; margin-bottom: 10px; letter-spacing: 2px; } /* 관리자는 파란색 로고 */
+    .main-logo { color: #007bff; font-size: 2rem; font-weight: bold; margin-bottom: 10px; letter-spacing: 2px; }
     .card { background: #222; border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: left; }
     .btn { width: 100%; padding: 18px 0; border-radius: 12px; border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer; color: white; transition: 0.2s; text-align: center; box-sizing: border-box; margin-top: 5px; }
-    .btn-primary { background: #007bff; box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3); } /* 관리자용 파란 버튼 */
+    .btn-primary { background: #007bff; box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3); }
     .copy-chip { background: #333; padding: 12px; border-radius: 8px; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #444; margin-bottom: 8px; }
     .copy-chip:active { background: #444; }
+    .hidden { display: none !important; }
     
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
     .modal-box { background: #222; padding: 20px; border-radius: 12px; width: 85%; max-width: 400px; border: 1px solid #444; text-align: center; }
@@ -24,23 +25,30 @@
   <div class="container">
     <div class="main-logo">ADMIN PASS</div>
 
-    <div class="card" style="margin-top: 15px;">
-      <div style="color: #aaa; font-size: 0.85rem; margin-bottom: 10px;">📺 넷플릭스 로그인 정보 <span style="font-size: 0.75rem; color: #888;">(클릭 시 복사)</span></div>
-      <div class="copy-chip" onclick="copyToClipboard('freenetfltoy00@gmail.com', '계정')">
-        <span style="color: #ccc;">계정</span>
-        <span style="color: white; font-weight: bold;">freenetfltoy00@gmail.com</span>
-      </div>
-      <div class="copy-chip" onclick="copyToClipboard('비밀번호로딩중', '비밀번호')" id="pw-chip">
-        <span style="color: #ccc;">비밀번호</span>
-        <span id="netflix-pw" style="color: #46d369; font-weight: bold; letter-spacing: 1px;">자동 로딩 중...</span>
-      </div>
+    <div id="status-screen" class="card" style="text-align: center; padding: 40px 20px;">
+      <h3 id="status-message" style="margin: 0; color: #ddd;">권한 확인 중...</h3>
+      <p id="status-sub" style="color: #888; font-size: 0.85rem; margin-top: 10px;">잠시만 기다려주세요.</p>
     </div>
 
-    <div style="color: #ccc; font-size: 0.9rem; margin: 20px 0 10px 0;">
-      넷플릭스 메일 발송 후 <b style="color: #007bff;">아래 버튼 클릭</b>
+    <div id="admin-panel-screen" class="hidden">
+      <div class="card">
+        <div style="color: #aaa; font-size: 0.85rem; margin-bottom: 10px;">📺 넷플릭스 로그인 정보 <span style="font-size: 0.75rem; color: #888;">(클릭 시 복사)</span></div>
+        <div class="copy-chip" onclick="copyToClipboard('freenetfltoy00@gmail.com', '계정')">
+          <span style="color: #ccc;">계정</span>
+          <span id="netflix-id" style="color: white; font-weight: bold;">-</span>
+        </div>
+        <div class="copy-chip" onclick="copyToClipboard('비밀번호로딩중', '비밀번호')" id="pw-chip">
+          <span style="color: #ccc;">비밀번호</span>
+          <span id="netflix-pw" style="color: #46d369; font-weight: bold; letter-spacing: 1px;">-</span>
+        </div>
+      </div>
+
+      <div style="color: #ccc; font-size: 0.9rem; margin: 20px 0 10px 0;">
+        넷플릭스 메일 발송 후 <b style="color: #007bff;">아래 버튼 클릭</b>
+      </div>
+      
+      <button class="btn btn-primary" onclick="checkAuth()">🚀 메일확인</button>
     </div>
-    
-    <button class="btn btn-primary" onclick="checkAuth()">🚀 인증/코드 강제 파싱</button>
   </div>
 
   <div id="modal" class="modal-overlay">
@@ -53,36 +61,59 @@
 
   <script>
     // =========================================================
-    // ★ 1. 관리자님의 GAS 백엔드 주소를 입력해 주세요.
+    // ★ 관리자님의 GAS 백엔드 주소를 여기에 적어주세요!
     const API_URL = "https://script.google.com/macros/s/AKfycbz2Miw2UtLT9yoVqd3OBQX1AeJTjDdplc_aczsIAjjzM9mkt15XusyQGAM9r3dXH9Vc/exec";
-    
-    // ★ 2. DB에 설정하신 ADMIN_KEY 값을 입력해 주세요. (이 코드가 알아서 문을 엽니다)
-    const ADMIN_SECRET_KEY = "P@ssw0rd";
     // =========================================================
 
-    // 사이트 접속 시 마스터키로 몰래 접속하여 비밀번호만 가져와서 화면에 뿌림
+    let currentMasterKey = "";
+
+    // 사이트 접속 시 URL 파라미터에서 키를 추출하여 즉시 백엔드 검증
     window.onload = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      currentMasterKey = urlParams.get('key');
+
+      const statusMsg = document.getElementById('status-message');
+      const statusSub = document.getElementById('status-sub');
+
+      if (!currentMasterKey) {
+        statusMsg.innerText = "접근 거부됨";
+        statusMsg.style.color = "#ff6b6b";
+        statusSub.innerText = "유효한 접근 경로가 아닙니다.";
+        return;
+      }
+
       try {
-        const response = await fetch(`${API_URL}?action=verify&key=${encodeURIComponent(ADMIN_SECRET_KEY)}`);
+        const response = await fetch(`${API_URL}?action=verify&key=${encodeURIComponent(currentMasterKey)}`);
         const result = await response.json();
+
         if (result.success) {
+          // 검증 성공 시 대기 화면을 숨기고 관리자 패널 노출
+          document.getElementById('status-screen').classList.add('hidden');
+          document.getElementById('admin-panel-screen').classList.remove('hidden');
+          
+          // 성공 시에만 계정 및 비밀번호 정보 세팅
+          document.getElementById('netflix-id').innerText = "freenetfltoy00@gmail.com";
           document.getElementById('netflix-pw').innerText = result.data.pw;
         } else {
-          document.getElementById('netflix-pw').innerText = "접근 거부됨";
-          document.getElementById('netflix-pw').style.color = "#ff6b6b";
+          statusMsg.innerText = "인증 실패";
+          statusMsg.style.color = "#ff6b6b";
+          statusSub.innerText = "마스터키가 올바르지 않습니다.";
         }
       } catch (err) {
-        document.getElementById('netflix-pw').innerText = "통신 오류";
-        document.getElementById('netflix-pw').style.color = "#ff6b6b";
+        statusMsg.innerText = "통신 오류";
+        statusMsg.style.color = "#ff6b6b";
+        statusSub.innerText = "서버와 연결할 수 없습니다.";
       }
     };
 
-    // 파싱 버튼 클릭 시 마스터키를 들고 파싱 요청
+    // 파싱 버튼 클릭 시 주소창에서 추출해둔 키를 들고 파싱 요청
     async function checkAuth() {
+      if (!currentMasterKey) return;
+
       showAlert("처리 중", "관리자 권한으로 이메일함을 확인하고 있습니다...\n(약 2~5초 소요)");
       
       try {
-        const response = await fetch(`${API_URL}?action=auth&key=${encodeURIComponent(ADMIN_SECRET_KEY)}`);
+        const response = await fetch(`${API_URL}?action=auth&key=${encodeURIComponent(currentMasterKey)}`);
         const result = await response.json();
         closeModal();
 
@@ -104,10 +135,7 @@
 
     function copyToClipboard(text, label) {
       if(text === '비밀번호로딩중') text = document.getElementById('netflix-pw').innerText;
-      if(text === '자동 로딩 중...' || text === '통신 오류' || text === '접근 거부됨') {
-        showAlert("오류", "비밀번호를 정상적으로 불러오지 못했습니다.");
-        return;
-      }
+      
       const tempInput = document.createElement("input");
       document.body.appendChild(tempInput);
       tempInput.value = text;
